@@ -15,11 +15,13 @@ namespace Nop.Web.Factories
         /// <param name="selectedCountryId">Selected country identifier</param>
         /// <param name="prePopulateNewAddressWithCustomerFields">Pre populate new address with customer fields</param>
         /// <param name="overrideAttributesXml">Override attributes xml</param>
+        /// <param name="currentAddressId">Selected address id</param>
         /// <returns>Billing address model</returns>
         CheckoutBillingAddressModel PrepareBillingAddressModel(IList<ShoppingCartItem> cart,
             int? selectedCountryId = null,
             bool prePopulateNewAddressWithCustomerFields = false,
-            string overrideAttributesXml = "");
+            string overrideAttributesXml = "",
+            int? currentAddressId = null);
 
         /// <summary>
         /// Prepare shipping address model

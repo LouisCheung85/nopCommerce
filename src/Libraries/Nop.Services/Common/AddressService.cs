@@ -18,6 +18,7 @@ namespace Nop.Services.Common
 
         private readonly AddressSettings _addressSettings;
         private readonly IAddressAttributeService _addressAttributeService;
+        private readonly IAddressAttributeParser _addressAttributeParser;
         private readonly ICacheManager _cacheManager;
         private readonly ICountryService _countryService;
         private readonly IEventPublisher _eventPublisher;
@@ -30,6 +31,7 @@ namespace Nop.Services.Common
 
         public AddressService(AddressSettings addressSettings,
             IAddressAttributeService addressAttributeService,
+            IAddressAttributeParser addressAttributeParser,
             ICacheManager cacheManager,
             ICountryService countryService,
             IEventPublisher eventPublisher,
@@ -38,6 +40,7 @@ namespace Nop.Services.Common
         {
             this._addressSettings = addressSettings;
             this._addressAttributeService = addressAttributeService;
+            this._addressAttributeParser = addressAttributeParser;
             this._cacheManager = cacheManager;
             this._countryService = countryService;
             this._eventPublisher = eventPublisher;
@@ -246,8 +249,12 @@ namespace Nop.Services.Common
                 string.IsNullOrWhiteSpace(address.FaxNumber))
                 return false;
 
-            var attributes = _addressAttributeService.GetAllAddressAttributes();
-            if (attributes.Any(x => x.IsRequired))
+            var hasInvalidCustomAttributes = _addressAttributeService.GetAllAddressAttributes()
+                .Where(attr => attr.IsRequired)
+                .Select(attr => _addressAttributeParser.ParseValues(address.CustomAttributes, attr.Id))
+                .Any(values => !values.Any());
+
+            if (hasInvalidCustomAttributes)
                 return false;
 
             return true;

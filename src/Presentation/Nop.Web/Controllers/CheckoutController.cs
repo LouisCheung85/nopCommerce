@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Nop.Core;
 using Nop.Core.Domain.Common;
 using Nop.Core.Domain.Customers;
@@ -25,6 +26,7 @@ using Nop.Web.Framework.Controllers;
 using Nop.Web.Framework.Mvc.Filters;
 using Nop.Web.Framework.Security;
 using Nop.Web.Models.Checkout;
+using Nop.Web.Models.Common;
 
 namespace Nop.Web.Controllers
 {
@@ -36,6 +38,7 @@ namespace Nop.Web.Controllers
         private readonly AddressSettings _addressSettings;
         private readonly CustomerSettings _customerSettings;
         private readonly IAddressAttributeParser _addressAttributeParser;
+        private readonly IAddressModelFactory _addressModelFactory;
         private readonly IAddressService _addressService;
         private readonly ICheckoutModelFactory _checkoutModelFactory;
         private readonly ICountryService _countryService;
@@ -65,6 +68,7 @@ namespace Nop.Web.Controllers
         public CheckoutController(AddressSettings addressSettings,
             CustomerSettings customerSettings,
             IAddressAttributeParser addressAttributeParser,
+            IAddressModelFactory addressModelFactory,
             IAddressService addressService,
             ICheckoutModelFactory checkoutModelFactory,
             ICountryService countryService,
@@ -90,6 +94,7 @@ namespace Nop.Web.Controllers
             this._addressSettings = addressSettings;
             this._customerSettings = customerSettings;
             this._addressAttributeParser = addressAttributeParser;
+            this._addressModelFactory = addressModelFactory;
             this._addressService = addressService;
             this._checkoutModelFactory = checkoutModelFactory;
             this._countryService = countryService;
@@ -1120,7 +1125,7 @@ namespace Nop.Web.Controllers
                     throw new Exception(_localizationService.GetResource("Checkout.Disabled"));
 
                 var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentCustomer, ShoppingCartType.ShoppingCart, _storeContext.CurrentStore.Id);
-
+                
                 if (!cart.Any())
                     throw new Exception("Your cart is empty");
 
@@ -1129,7 +1134,7 @@ namespace Nop.Web.Controllers
 
                 if (_workContext.CurrentCustomer.IsGuest() && !_orderSettings.AnonymousCheckoutAllowed)
                     throw new Exception("Anonymous checkout is not allowed");
-
+                
                 int.TryParse(model.Form["billing_address_id"], out int billingAddressId);
 
                 if (billingAddressId > 0)
@@ -1138,6 +1143,34 @@ namespace Nop.Web.Controllers
                     var address = _workContext.CurrentCustomer.Addresses.FirstOrDefault(a => a.Id == billingAddressId);
                     if (address == null)
                         throw new Exception("Address can't be loaded");
+                    if (!_addressService.IsAddressValid(address))
+                    {
+                        var customAttributeWarnings = _addressAttributeParser.GetAttributeWarnings(address.CustomAttributes);
+                        foreach (var error in customAttributeWarnings)
+                        {
+                            ModelState.AddModelError("", error);
+                        }
+
+                        //model is not valid. redisplay the form with errors
+                        var billingAddressModel = _checkoutModelFactory.PrepareBillingAddressModel(cart,
+                            selectedCountryId: address.CountryId,
+                            overrideAttributesXml: address.CustomAttributes,
+                            currentAddressId: billingAddressId);
+
+                        billingAddressModel.NewAddressPreselected = true;
+
+                        model.BillingNewAddress = billingAddressModel.BillingNewAddress;
+
+                        return Json(new
+                        {
+                            update_section = new UpdateSectionJsonModel
+                            {
+                                name = "billing",
+                                html = RenderPartialViewToString("OpcBillingAddress", billingAddressModel)
+                            },
+                            wrong_billing_address = true,
+                        });
+                    }
 
                     _workContext.CurrentCustomer.BillingAddress = address;
                     _customerService.UpdateCustomer(_workContext.CurrentCustomer);
@@ -1318,6 +1351,32 @@ namespace Nop.Web.Controllers
                     var address = _workContext.CurrentCustomer.Addresses.FirstOrDefault(a => a.Id == shippingAddressId);
                     if (address == null)
                         throw new Exception("Address can't be loaded");
+
+                    if (!_addressService.IsAddressValid(address))
+                    {
+                        var customAttributeWarnings = _addressAttributeParser.GetAttributeWarnings(address.CustomAttributes);
+                        foreach (var error in customAttributeWarnings)
+                        {
+                            ModelState.AddModelError("", error);
+                        }
+
+
+                        //model is not valid. redisplay the form with errors
+                        var shippingAddressModel = _checkoutModelFactory.PrepareShippingAddressModel(
+                            selectedCountryId: address.CountryId,
+                            overrideAttributesXml: address.CustomAttributes);
+                        shippingAddressModel.ShippingNewAddress = address.ToModel(shippingAddressModel.ShippingNewAddress);
+                        shippingAddressModel.NewAddressPreselected = true;
+                        return Json(new
+                        {
+                            update_section = new UpdateSectionJsonModel
+                            {
+                                name = "shipping",
+                                html = RenderPartialViewToString("OpcShippingAddress", shippingAddressModel)
+                            }
+                        });
+                        
+                    }
 
                     _workContext.CurrentCustomer.ShippingAddress = address;
                     _customerService.UpdateCustomer(_workContext.CurrentCustomer);

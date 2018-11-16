@@ -62,5 +62,53 @@ namespace Nop.Web.Extensions
 
             return destination;
         }
+
+        public static AddressModel ToModel(this Address entity, AddressModel destination, bool trimFields = true)
+        {
+            if (entity == null)
+                return destination;
+
+            if (trimFields)
+            {
+                if (entity.FirstName != null)
+                    entity.FirstName = entity.FirstName.Trim();
+                if (entity.LastName != null)
+                    entity.LastName = entity.LastName.Trim();
+                if (entity.Email != null)
+                    entity.Email = entity.Email.Trim();
+                if (entity.Company != null)
+                    entity.Company = entity.Company.Trim();
+                if (entity.County != null)
+                    entity.County = entity.County.Trim();
+                if (entity.City != null)
+                    entity.City = entity.City.Trim();
+                if (entity.Address1 != null)
+                    entity.Address1 = entity.Address1.Trim();
+                if (entity.Address2 != null)
+                    entity.Address2 = entity.Address2.Trim();
+                if (entity.ZipPostalCode != null)
+                    entity.ZipPostalCode = entity.ZipPostalCode.Trim();
+                if (entity.PhoneNumber != null)
+                    entity.PhoneNumber = entity.PhoneNumber.Trim();
+                if (entity.FaxNumber != null)
+                    entity.FaxNumber = entity.FaxNumber.Trim();
+            }
+            destination.Id = entity.Id;
+            destination.FirstName = entity.FirstName;
+            destination.LastName = entity.LastName;
+            destination.Email = entity.Email;
+            destination.Company = entity.Company;
+            destination.CountryId = entity.CountryId;
+            destination.StateProvinceId = entity.StateProvinceId;
+            destination.County = entity.County;
+            destination.City = entity.City;
+            destination.Address1 = entity.Address1;
+            destination.Address2 = entity.Address2;
+            destination.ZipPostalCode = entity.ZipPostalCode;
+            destination.PhoneNumber = entity.PhoneNumber;
+            destination.FaxNumber = entity.FaxNumber;
+
+            return destination;
+        }
     }
 }
